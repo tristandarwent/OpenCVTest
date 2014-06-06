@@ -143,18 +143,8 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 
 	@Override
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-//		return inputFrame.rgba();
 		
 		Mat frame = inputFrame.rgba();
-		
-		
-//		File root = Environment.getExternalStorageDirectory();
-//	    File file = new File("assets/newTopLeftMarker.jpg");
-
-	    // this should be in BGR format according to the
-	    // documentation.
-		
-//		File root = Environment.getExternalStorageDirectory();
 		
 		String[] files = null;
 		File tempFile = null;
@@ -173,30 +163,10 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 		}
 	
 		
-//		try {
-//			files = assetManager.list("");
-//			Log.i(TAG, "FILES " + files[0]);
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-
-//		
-//        File root = Environment.getExternalStorageDirectory();
-//        File file = new File(root, "Icon.png"); 
-//        Log.i(TAG, "ROOT " + root);
-//		if(file.exists())
-//		{ 
-//			Log.i(TAG, "YES");
-//		} else {
-//			Log.i(TAG, "NO");
-//		}
-////		
 	    Mat topLeftMat = Highgui.imread(tempFile.getAbsolutePath());
 		Imgproc.cvtColor(frame, frame, Imgproc.COLOR_RGB2GRAY);
 		Imgproc.cvtColor(topLeftMat, topLeftMat, Imgproc.COLOR_RGB2GRAY);
-
-//	    
+    
 	    if (topLeftMat.width() > 0){
 	    	Log.i(TAG, "WIDTH: YES");
 	    } else {
@@ -205,29 +175,23 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    Log.i(TAG, "Width " + topLeftMat.cols());
 	    Log.i(TAG, "height " + topLeftMat.rows());
 	    
-//	    
-//	    Core.rectangle(frame, new Point(5,5), new Point( topLeftMat.cols(),
-//	    	      topLeftMat.rows()), new Scalar(0, 255, 0));
-////
-//      Mat img = Highgui.imread(inFile);
 //
       // / Create the result matrix
       int result_cols = frame.cols() - topLeftMat.cols() + 1; 
       int result_rows = frame.rows() - topLeftMat.rows() + 1;
       Mat result = new Mat(result_rows, result_cols, CvType.CV_32FC1);
-	    
-	  //  Mat result = new Mat();
-//	    	    
-	    int match_method = Imgproc.TM_SQDIFF;
-////
-//      // / Do the Matching and Normalize
+	        	    
+	  int match_method = Imgproc.TM_SQDIFF;
+
+	  // Do the Matching and Normalize
 	    
       Imgproc.matchTemplate(frame, topLeftMat, result, match_method);
-//      Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
-//
-//      // / Localizing the best match with minMaxLoc
+      
+//     Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
+      
+      // Localizing the best match with minMaxLoc
       MinMaxLocResult mmr = Core.minMaxLoc(result);
-//
+
       Point matchLoc;
       if (match_method == Imgproc.TM_SQDIFF || match_method == Imgproc.TM_SQDIFF_NORMED) {
           matchLoc = mmr.minLoc;
@@ -235,13 +199,13 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
           matchLoc = mmr.maxLoc;
       }
 
-//      // / Show me what you got
+      // Show me what you got
       Core.rectangle(frame, matchLoc, new Point(matchLoc.x + topLeftMat.cols(),
       matchLoc.y + topLeftMat.rows()), new Scalar(0, 255, 0));
-////
-//      // Save the visualized detection.
-//      System.out.println("Writing "+ outFile);
-//      Highgui.imwrite(outFile, img);
+
+//    // Save the visualized detection.
+//    System.out.println("Writing "+ outFile);
+//    Highgui.imwrite(outFile, img);
 		
 		return frame;
 	}
