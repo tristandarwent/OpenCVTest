@@ -17,6 +17,7 @@ import org.opencv.core.Core.MinMaxLocResult;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
@@ -144,8 +145,18 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	@Override
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
 		
+		// Taking inputFrame and putting it into a Mat
 		Mat frame = inputFrame.rgba();
 		
+		// TopLeft clone Mat
+		Rect topLeftRect = new Rect(0, (int)(frame.rows() - frame.rows()*0.4), (int)(frame.cols()*0.4), (int)(frame.rows()*0.4));
+		Mat topLeftFrame = new Mat(frame, topLeftRect).clone();
+		
+		// BottomRight clone Mat
+		Rect bottomRightRect = new Rect((int)(frame.cols() - frame.cols()*0.4), 0, (int)(frame.cols()*0.4), (int)(frame.rows()*0.4));
+		Mat bottomRightFrame = new Mat(frame, bottomRightRect).clone();
+		
+		// Puts marker into tempFiles and gets path
 		String[] files = null;
 		File tempFile = null;
 		
@@ -162,46 +173,69 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 			e.printStackTrace();
 		}
 	
-		
-	    Mat topLeftMat = Highgui.imread(tempFile.getAbsolutePath());
-		Imgproc.cvtColor(frame, frame, Imgproc.COLOR_RGB2GRAY);
-		Imgproc.cvtColor(topLeftMat, topLeftMat, Imgproc.COLOR_RGB2GRAY);
+		// Mat for Bottom Right Marker
+	    Mat bottomRightMarker = Highgui.imread(tempFile.getAbsolutePath());
+	    
+	    // Converts all images to Grayscale
+	    Imgproc.cvtColor(frame, frame, Imgproc.COLOR_RGB2GRAY);
+	    Imgproc.cvtColor(topLeftFrame, topLeftFrame, Imgproc.COLOR_RGB2GRAY);
+		Imgproc.cvtColor(bottomRightFrame, bottomRightFrame, Imgproc.COLOR_RGB2GRAY);
+		Imgproc.cvtColor(bottomRightMarker, bottomRightMarker, Imgproc.COLOR_RGB2GRAY);
     
-	    if (topLeftMat.width() > 0){
+		// For testing and debugging
+	    if (bottomRightMarker.width() > 0){
 	    	Log.i(TAG, "WIDTH: YES");
 	    } else {
 	    	Log.i(TAG, "WIDTH: NO");
 	    }
-	    Log.i(TAG, "Width " + topLeftMat.cols());
-	    Log.i(TAG, "height " + topLeftMat.rows());
+	    Log.i(TAG, "WidthFrame " + frame.cols());
+	    Log.i(TAG, "heightFrame " + frame.rows());
+	    Log.i(TAG, "WidthFrameCut " + bottomRightFrame.cols());
+	    Log.i(TAG, "heightFrameCut " + bottomRightFrame.rows());
+	    Log.i(TAG, "Width " + bottomRightMarker.cols());
+	    Log.i(TAG, "height " + bottomRightMarker.rows());
 	    
-//
-      // / Create the result matrix
-      int result_cols = frame.cols() - topLeftMat.cols() + 1; 
-      int result_rows = frame.rows() - topLeftMat.rows() + 1;
-      Mat result = new Mat(result_rows, result_cols, CvType.CV_32FC1);
+	  // Create the result matrix for top left frame
+	  int result_cols_tl = topLeftFrame.cols() - bottomRightMarker.cols() + 1; 
+	  int result_rows_tl = topLeftFrame.rows() - bottomRightMarker.rows() + 1;
+	  Mat resultTL = new Mat(result_rows_tl, result_cols_tl, CvType.CV_32FC1);
+	    
+      // Create the result matrix for bottom right frame
+      int result_cols_br = bottomRightFrame.cols() - bottomRightMarker.cols() + 1; 
+      int result_rows_br = bottomRightFrame.rows() - bottomRightMarker.rows() + 1;
+      Mat resultBR = new Mat(result_rows_br, result_cols_br, CvType.CV_32FC1);
 	        	    
+      // I have no idea what this is... yet
 	  int match_method = Imgproc.TM_SQDIFF;
 
-	  // Do the Matching and Normalize
-	    
-      Imgproc.matchTemplate(frame, topLeftMat, result, match_method);
+	  // Do the Matching for bottom right
+      Imgproc.matchTemplate(topLeftFrame, bottomRightMarker, resultTL, match_method);
+	  
+	  // Do the Matching for bottom right
+      Imgproc.matchTemplate(bottomRightFrame, bottomRightMarker, resultBR, match_method);
       
-//     Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
+      // Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
       
       // Localizing the best match with minMaxLoc
-      MinMaxLocResult mmr = Core.minMaxLoc(result);
+      MinMaxLocResult mmrTL = Core.minMaxLoc(resultTL);
+      MinMaxLocResult mmrBR = Core.minMaxLoc(resultBR);
 
-      Point matchLoc;
+      // Gets point of bottom right match
+      Point matchLocTL;
+      Point matchLocBR;
       if (match_method == Imgproc.TM_SQDIFF || match_method == Imgproc.TM_SQDIFF_NORMED) {
-          matchLoc = mmr.minLoc;
+    	  matchLocTL = mmrTL.minLoc;
+          matchLocBR = mmrBR.minLoc;
       } else {
-          matchLoc = mmr.maxLoc;
+    	  matchLocTL = mmrTL.maxLoc;
+    	  matchLocBR = mmrBR.maxLoc;
       }
-
+      
       // Show me what you got
-      Core.rectangle(frame, matchLoc, new Point(matchLoc.x + topLeftMat.cols(),
-      matchLoc.y + topLeftMat.rows()), new Scalar(0, 255, 0));
+      Core.rectangle(frame, new Point(matchLocTL.x, (matchLocTL.y + frame.rows()*0.6)), new Point(matchLocTL.x + bottomRightMarker.cols(),
+    		  (matchLocTL.y + frame.rows()*0.6) + bottomRightMarker.rows()), new Scalar(0, 255, 0));
+      Core.rectangle(frame, new Point((matchLocBR.x + frame.cols()*0.6), matchLocBR.y), new Point((matchLocBR.x + frame.cols()*0.6) + bottomRightMarker.cols(),
+    		  matchLocBR.y + bottomRightMarker.rows()), new Scalar(0, 255, 0));
 
 //    // Save the visualized detection.
 //    System.out.println("Writing "+ outFile);
