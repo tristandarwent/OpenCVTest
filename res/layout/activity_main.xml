@@ -1,12 +1,19 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent" >
+    android:layout_height="match_parent"
+    android:orientation="horizontal" >
 
     <com.example.opencvtest.OpenCVTestCameraView
         android:id="@+id/java_surface_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/captureImg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+         />
 
 </LinearLayout>

@@ -12,6 +12,7 @@ import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.Core.MinMaxLocResult;
 import org.opencv.core.CvType;
@@ -24,6 +25,7 @@ import org.opencv.imgproc.Imgproc;
 
 import android.app.Activity;
 import android.content.res.AssetManager;
+import android.graphics.Bitmap;
 import android.hardware.Camera.Size;
 import android.os.Bundle;
 import android.util.Log;
@@ -35,6 +37,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnTouchListener;
 import android.view.WindowManager;
+import android.widget.ImageView;
 
 public class MainActivity extends Activity implements CvCameraViewListener2, OnTouchListener {
 	private static final String TAG = "OCVSample::Activity";
@@ -45,6 +48,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
     private SubMenu mColorEffectsMenu;
     private MenuItem[] mResolutionMenuItems;
     private SubMenu mResolutionMenu;
+    private boolean takeCapture = false; 
     
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -126,7 +130,8 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 
 	@Override
 	public boolean onTouch(View arg0, MotionEvent arg1) {
-		// TODO Auto-generated method stub
+		Log.i(TAG, "TAPPED");
+		takeCapture = true;
 		return false;
 	}
 
@@ -177,7 +182,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    Mat bottomRightMarker = Highgui.imread(tempFile.getAbsolutePath());
 	    
 	    // Converts all images to Grayscale
-	    Imgproc.cvtColor(frame, frame, Imgproc.COLOR_RGB2GRAY);
+//	    Imgproc.cvtColor(frame, frame, Imgproc.COLOR_RGB2GRAY);
 	    Imgproc.cvtColor(topLeftFrame, topLeftFrame, Imgproc.COLOR_RGB2GRAY);
 		Imgproc.cvtColor(bottomRightFrame, bottomRightFrame, Imgproc.COLOR_RGB2GRAY);
 		Imgproc.cvtColor(bottomRightMarker, bottomRightMarker, Imgproc.COLOR_RGB2GRAY);
@@ -236,10 +241,41 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
     		  (matchLocTL.y + frame.rows()*0.6) + bottomRightMarker.rows()), new Scalar(0, 255, 0));
       Core.rectangle(frame, new Point((matchLocBR.x + frame.cols()*0.6), matchLocBR.y), new Point((matchLocBR.x + frame.cols()*0.6) + bottomRightMarker.cols(),
     		  matchLocBR.y + bottomRightMarker.rows()), new Scalar(0, 255, 0));
+      
+      
+      // X and Y coordinates for the capture points
+      int captureTLx = (int) matchLocTL.x;
+      int captureTLy = (int) (matchLocTL.y + frame.rows()*0.6) + bottomRightMarker.rows();
+      int captureBRx = (int) (matchLocBR.x + frame.cols()*0.6) + bottomRightMarker.cols();
+      int captureBRy = (int) matchLocBR.y;
+      
+      // Draw rectangle of capture area for test purposes
+      Core.rectangle(frame, new Point(captureTLx, captureTLy), new Point(captureBRx, captureBRy), new Scalar(255, 0, 0));
+      
+      if (takeCapture) {
+    	  
+    	  Log.i(TAG, "TAPPED 2");
+    	  
+    	  takeCapture = false;
+    	  
+    	  // Capture Code -- Does not work yet. Need to output in different way to verify it is capturing and cropping properly.
+    	  
+//	      // Get Mat of capture area
+//	      Rect captureRect = new Rect(0, (int)(frame.rows() - frame.rows()*0.4), (int)(frame.cols()*0.4), (int)(frame.rows()*0.4));
+//	      Mat capture = new Mat(frame, captureRect).clone();
+//	   
+//	      // convert to bitmap:
+//	      Bitmap bm = Bitmap.createBitmap(capture.cols(), capture.rows(),Bitmap.Config.ARGB_8888);
+//	      Utils.matToBitmap(capture, bm);
+//	
+//	      // find the imageview and draw it!
+//	      ImageView iv = (ImageView) findViewById(R.id.captureImg);
+//	      iv.setImageBitmap(bm);
+      }
 
-//    // Save the visualized detection.
-//    System.out.println("Writing "+ outFile);
-//    Highgui.imwrite(outFile, img);
+      // Save the visualized detection.
+      // System.out.println("Writing "+ outFile);
+      // Highgui.imwrite(outFile, img);
 		
 		return frame;
 	}
