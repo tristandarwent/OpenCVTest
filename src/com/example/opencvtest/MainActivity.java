@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.io.IOUtils;
@@ -17,22 +18,23 @@ import org.opencv.core.Core;
 import org.opencv.core.Core.MinMaxLocResult;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
 
 import android.app.Activity;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
-import android.hardware.Camera.Size;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.SubMenu;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnTouchListener;
@@ -43,11 +45,11 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	private static final String TAG = "OCVSample::Activity";
 
     private OpenCVTestCameraView mOpenCvCameraView;
-    private List<Size> mResolutionList;
-    private MenuItem[] mEffectMenuItems;
-    private SubMenu mColorEffectsMenu;
-    private MenuItem[] mResolutionMenuItems;
-    private SubMenu mResolutionMenu;
+//    private List<Size> mResolutionList;
+//    private MenuItem[] mEffectMenuItems;
+//    private SubMenu mColorEffectsMenu;
+//    private MenuItem[] mResolutionMenuItems;
+//    private SubMenu mResolutionMenu;
     private boolean takeCapture = false; 
     
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -163,28 +165,42 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 		
 		// Puts marker into tempFiles and gets path
 		String[] files = null;
-		File tempFile = null;
+		File tempFileTL = null;
+		File tempFileBR = null;
 		
 		AssetManager assetManager = this.getAssets();		
 		try {
-			InputStream is = assetManager.open("Icon.png");
-			tempFile = File.createTempFile("Icon", "png");
-			tempFile.deleteOnExit();
-			FileOutputStream out = new FileOutputStream(tempFile);
-			IOUtils.copy(is, out);
-			Log.i(TAG, "PATH " + tempFile.getAbsolutePath());
+			InputStream isTL = assetManager.open("TLMarker.png");
+			InputStream isBR = assetManager.open("BRMarker.png");
+			
+			tempFileTL = File.createTempFile("TLMarker", "png");
+			tempFileBR = File.createTempFile("BRMarker", "png");
+			
+			tempFileTL.deleteOnExit();
+			tempFileBR.deleteOnExit();
+			
+			FileOutputStream outTL = new FileOutputStream(tempFileTL);
+			FileOutputStream outBR = new FileOutputStream(tempFileBR);
+			
+			IOUtils.copy(isTL, outTL);
+			IOUtils.copy(isBR, outBR);
+			Log.i(TAG, "PATH " + tempFileTL.getAbsolutePath());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		// Mat for Top Left Marker
+	    Mat topLeftMarker = Highgui.imread(tempFileTL.getAbsolutePath());
 	
 		// Mat for Bottom Right Marker
-	    Mat bottomRightMarker = Highgui.imread(tempFile.getAbsolutePath());
+	    Mat bottomRightMarker = Highgui.imread(tempFileBR.getAbsolutePath());
 	    
 	    // Converts all images to Grayscale
 //	    Imgproc.cvtColor(frame, frame, Imgproc.COLOR_RGB2GRAY);
 	    Imgproc.cvtColor(topLeftFrame, topLeftFrame, Imgproc.COLOR_RGB2GRAY);
 		Imgproc.cvtColor(bottomRightFrame, bottomRightFrame, Imgproc.COLOR_RGB2GRAY);
+		Imgproc.cvtColor(topLeftMarker, topLeftMarker, Imgproc.COLOR_RGB2GRAY);
 		Imgproc.cvtColor(bottomRightMarker, bottomRightMarker, Imgproc.COLOR_RGB2GRAY);
     
 		// For testing and debugging
@@ -201,8 +217,8 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    Log.i(TAG, "height " + bottomRightMarker.rows());
 	    
 	  // Create the result matrix for top left frame
-	  int result_cols_tl = topLeftFrame.cols() - bottomRightMarker.cols() + 1; 
-	  int result_rows_tl = topLeftFrame.rows() - bottomRightMarker.rows() + 1;
+	  int result_cols_tl = topLeftFrame.cols() - topLeftMarker.cols() + 1; 
+	  int result_rows_tl = topLeftFrame.rows() - topLeftMarker.rows() + 1;
 	  Mat resultTL = new Mat(result_rows_tl, result_cols_tl, CvType.CV_32FC1);
 	    
       // Create the result matrix for bottom right frame
@@ -214,7 +230,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	  int match_method = Imgproc.TM_SQDIFF;
 
 	  // Do the Matching for bottom right
-      Imgproc.matchTemplate(topLeftFrame, bottomRightMarker, resultTL, match_method);
+      Imgproc.matchTemplate(topLeftFrame, topLeftMarker, resultTL, match_method);
 	  
 	  // Do the Matching for bottom right
       Imgproc.matchTemplate(bottomRightFrame, bottomRightMarker, resultBR, match_method);
@@ -224,6 +240,9 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
       // Localizing the best match with minMaxLoc
       MinMaxLocResult mmrTL = Core.minMaxLoc(resultTL);
       MinMaxLocResult mmrBR = Core.minMaxLoc(resultBR);
+      
+      Log.i(TAG, "mmrTL " + mmrTL.maxVal);
+	  Log.i(TAG, "mmrBR " + mmrBR.maxVal);
 
       // Gets point of bottom right match
       Point matchLocTL;
@@ -237,15 +256,15 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
       }
       
       // Show me what you got
-      Core.rectangle(frame, new Point(matchLocTL.x, (matchLocTL.y + frame.rows()*0.6)), new Point(matchLocTL.x + bottomRightMarker.cols(),
-    		  (matchLocTL.y + frame.rows()*0.6) + bottomRightMarker.rows()), new Scalar(0, 255, 0));
+      Core.rectangle(frame, new Point(matchLocTL.x, (matchLocTL.y + frame.rows()*0.6)), new Point(matchLocTL.x + topLeftMarker.cols(),
+    		  (matchLocTL.y + frame.rows()*0.6) + topLeftMarker.rows()), new Scalar(0, 255, 0));
       Core.rectangle(frame, new Point((matchLocBR.x + frame.cols()*0.6), matchLocBR.y), new Point((matchLocBR.x + frame.cols()*0.6) + bottomRightMarker.cols(),
     		  matchLocBR.y + bottomRightMarker.rows()), new Scalar(0, 255, 0));
       
       
       // X and Y coordinates for the capture points
       int captureTLx = (int) matchLocTL.x;
-      int captureTLy = (int) (matchLocTL.y + frame.rows()*0.6) + bottomRightMarker.rows();
+      int captureTLy = (int) (matchLocTL.y + frame.rows()*0.6) + topLeftMarker.rows();
       int captureBRx = (int) (matchLocBR.x + frame.cols()*0.6) + bottomRightMarker.cols();
       int captureBRy = (int) matchLocBR.y;
       
@@ -258,19 +277,43 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
     	  
     	  takeCapture = false;
     	  
-    	  // Capture Code -- Does not work yet. Need to output in different way to verify it is capturing and cropping properly.
-    	  
-//	      // Get Mat of capture area
-//	      Rect captureRect = new Rect(0, (int)(frame.rows() - frame.rows()*0.4), (int)(frame.cols()*0.4), (int)(frame.rows()*0.4));
-//	      Mat capture = new Mat(frame, captureRect).clone();
-//	   
-//	      // convert to bitmap:
-//	      Bitmap bm = Bitmap.createBitmap(capture.cols(), capture.rows(),Bitmap.Config.ARGB_8888);
+	      // Get Mat of capture area
+	      Rect captureRect = new Rect(new Point(captureTLx, captureTLy), new Point(captureBRx, captureBRy));
+	      Mat capture = new Mat(frame, captureRect).clone();
+	   
+	      // convert to bitmap:
+	      
+	      // TO SWITCH FROM CAMERA TO TEST IMAGE ------------------
+	      // Comment out code you wish to disable and uncomment code for mode you wish to enable
+	      
+//	      // For openCV Camera
+//	      final Bitmap bm = Bitmap.createBitmap(capture.cols(), capture.rows(),Bitmap.Config.ARGB_8888);
 //	      Utils.matToBitmap(capture, bm);
-//	
-//	      // find the imageview and draw it!
-//	      ImageView iv = (ImageView) findViewById(R.id.captureImg);
-//	      iv.setImageBitmap(bm);
+	      
+	      // For test image
+	      final Bitmap bm = BitmapFactory.decodeResource(getResources(),
+                  R.drawable.upload);
+	      
+	      // -----------------------
+	      
+	      
+	      runOnUiThread(new Runnable() {
+	    	     @Override
+	    	     public void run() {
+	    	    	 
+	    	    	 // Find imageView
+	    	    	 ImageView iv = (ImageView) findViewById(R.id.captureImg);
+	    	    	 
+	    	    	 // Set cropped capture into imageView
+//	    	    	 iv.setImageBitmap(bm);
+	    	    	 
+	    	    	 // Hide the cameraView to see the imageView behind it
+	    	    	 mOpenCvCameraView.setVisibility(SurfaceView.INVISIBLE);
+	    	    	 
+	    	    	 // Run findContours function, passing through cropped image
+	    	    	 findContour(bm);
+	    	    }
+	    	});
       }
 
       // Save the visualized detection.
@@ -278,6 +321,74 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
       // Highgui.imwrite(outFile, img);
 		
 		return frame;
+	}
+	
+	public void findContour(Bitmap img) {
+		Log.i(TAG, "RAN!");
+		
+		// FindContours function
+		
+		
+		// Takes cropped image and converts it to Mat
+		Bitmap imgCopy = img.copy(Bitmap.Config.ARGB_8888, true); 
+		Mat originalImage = new Mat();
+		Utils.bitmapToMat(imgCopy, originalImage);
+		
+		Log.i(TAG, "WidthFrame " + originalImage.cols());
+	    Log.i(TAG, "heightFrame " + originalImage.rows());
+	    
+	    // Sets up for findContours
+	    Mat manipulateImage = new Mat();
+	    Imgproc.cvtColor(originalImage, manipulateImage, Imgproc.COLOR_RGB2GRAY);
+	    Imgproc.blur(manipulateImage, manipulateImage, new Size(3,3));
+	    Imgproc.Canny(manipulateImage, manipulateImage, 150, 150);
+	    Imgproc.dilate(manipulateImage, manipulateImage, new Mat());
+	    
+	    List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+	    Mat hierarchy = new Mat();
+		
+	    // Finds the contours
+	    Imgproc.findContours(manipulateImage, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+	    
+	    // Loops through contours, allowing us to pinpoint the largest one
+	    double maxArea = -1;
+	    int maxAreaI = -1;
+	    
+	    for (int i=0; i<contours.size(); i++){
+	    	Mat contour = contours.get(i);
+	        double contourarea = Imgproc.contourArea(contour);
+	        Log.i(TAG, "contourArea " + contourarea);
+	        if (contourarea > maxArea) {
+	            maxArea = contourarea;
+	            maxAreaI = i;
+	            Log.i(TAG, "maxArea " + maxArea);
+	        }
+	    }
+	    
+	    // Mat to store result from drawContours
+	    Mat resultMat = Mat.zeros(manipulateImage.rows(),manipulateImage.cols(),manipulateImage.type());;
+	    
+	    // Draws contours
+	    Imgproc.drawContours(resultMat, contours, maxAreaI, new Scalar(255), 4);
+	    
+	    Log.i(TAG, "resultMat cols " + resultMat.cols());
+	    Log.i(TAG, "resultMat rows " + resultMat.rows());
+	    
+	    
+	    // Converts result for drawContours to Bitmap
+	    final Bitmap bm = Bitmap.createBitmap(resultMat.cols(), resultMat.rows(),Bitmap.Config.ARGB_8888);
+	    Utils.matToBitmap(resultMat, bm);
+	    
+	    runOnUiThread(new Runnable() {
+   	     @Override
+   	     public void run() {
+   	    	 
+   	    	// Displays in imageView
+   	    	ImageView iv = (ImageView) findViewById(R.id.captureImg);
+   		    iv.setImageBitmap(bm);
+	   	    }
+	   	});
+	    
 	}
 
 }
