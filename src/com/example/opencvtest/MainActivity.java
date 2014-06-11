@@ -43,6 +43,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
+import android.widget.RelativeLayout.LayoutParams;
 
 public class MainActivity extends Activity implements CvCameraViewListener2, OnTouchListener {
 	private static final String TAG = "OCVSample::Activity";
@@ -55,6 +56,9 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 //    private SubMenu mResolutionMenu;
     private boolean takeCapture = false; 
     private RelativeLayout rl;
+    private float oldXvalue;
+    private float oldYvalue;
+    private int mx, my;
     
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -404,11 +408,26 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    UIbtn.setWidth(UIRect.width);
 	    UIbtn.setHeight(UIRect.height);
 	    
-	    UIbtn.setOnClickListener(new View.OnClickListener() {
-	        public void onClick(View view) {
-	        	Log.i(TAG, "CLICKED");
-	        }
-	    });
+	    UIbtn.setOnTouchListener(new OnTouchListener() {
+			
+			@Override
+			public boolean onTouch(View v, MotionEvent event) {
+				Log.i(TAG, "CLICKED");
+				if (event.getAction() == MotionEvent.ACTION_DOWN){
+	                oldXvalue = event.getX();
+	                oldYvalue = event.getY();
+	                Log.i(TAG, "ACTION_DOWN");
+	                Log.i(TAG, "Action Down " + oldXvalue + "," + oldYvalue);
+	            }else if (event.getAction() == MotionEvent.ACTION_MOVE  ){
+	            	Log.i(TAG, "ACTION_MOVE");
+	            	mx = (int)(event.getRawX() - oldXvalue);    
+	                my = (int)(event.getRawY() - oldYvalue);    
+	                v.setX(mx);
+	                v.setY(my);
+	            }
+				return false;
+			}
+		});
 //	    croppedImage.setLayoutParams(new LayoutParams(UIRect.width, UIRect.height));
 	   
 	    
