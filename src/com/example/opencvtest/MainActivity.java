@@ -30,6 +30,7 @@ import android.app.Activity;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -39,7 +40,9 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnTouchListener;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 
 public class MainActivity extends Activity implements CvCameraViewListener2, OnTouchListener {
 	private static final String TAG = "OCVSample::Activity";
@@ -51,6 +54,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 //    private MenuItem[] mResolutionMenuItems;
 //    private SubMenu mResolutionMenu;
     private boolean takeCapture = false; 
+    private RelativeLayout rl;
     
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -74,6 +78,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	protected void onCreate(Bundle savedInstanceState) {		
 		Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
+        
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         setContentView(R.layout.activity_main);
@@ -330,7 +335,6 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 		
 		// FindContours function
 		
-		
 		// Takes cropped image and converts it to Mat
 		Bitmap imgCopy = img.copy(Bitmap.Config.ARGB_8888, true); 
 		Mat matFromOriginalImage = new Mat();
@@ -369,33 +373,57 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    }
 	    
 	    largestContour = contours.get(maxAreaI);
-	    
-//	    Log.i(TAG, "largest cols " + largestContour.cols());
-//	    Log.i(TAG, "largest rows " + largestContour.rows());
-	    
-//	    return largestContour;
+
 	    
 	    // Mat to store result from drawContours
 	    Mat maskMat = Mat.zeros(manipulateImage.rows(),manipulateImage.cols(),manipulateImage.type());
 	    
 	    // Draws contours
-	    Imgproc.drawContours(maskMat, contours, maxAreaI, new Scalar(255), -1);
-	    
-//	    Log.i(TAG, "resultMat cols " + resultMat.cols());
-//	    Log.i(TAG, "resultMat rows " + resultMat.rows());
-//	    
+	    Imgproc.drawContours(maskMat, contours, maxAreaI, new Scalar(125, 125, 125), -1);
+	       
 	    Mat crop = new Mat(matFromOriginalImage.rows(), matFromOriginalImage.cols(), CvType.CV_8UC3);
-//
-//	    // set background to green
-	    crop.setTo(new Scalar(255, 0, 0));
+	    
+	    // set background to green
+	    crop.setTo(new Scalar(0, 255, 0));
+	    
+//	    Imgproc.blur(maskMat, maskMat, new Size(13,13));
     
 	    matFromOriginalImage.copyTo(crop, maskMat);
 	    
-	    Core.normalize(maskMat.clone(), maskMat, 0.0, 255.0, Core.NORM_MINMAX, CvType.CV_8UC1);
+//	    Core.normalize(maskMat.clone(), maskMat, 0.0, 255.0, Core.NORM_MINMAX, CvType.CV_8UC1);
+	    
+	    Rect UIRect = Imgproc.boundingRect(largestContour);
+	    Mat UICrop = new Mat(crop, UIRect).clone();
+	    
+	    Bitmap UIbm = Bitmap.createBitmap(UICrop.cols(), UICrop.rows(),Bitmap.Config.ARGB_8888);
+	    Utils.matToBitmap(UICrop, UIbm);
+	    BitmapDrawable UIbmd = new BitmapDrawable(UIbm);
+	    
+	    Button UIbtn = new Button(this);
+	    UIbtn.setBackgroundDrawable(UIbmd);
+	    UIbtn.setWidth(UIRect.width);
+	    UIbtn.setHeight(UIRect.height);
+	    
+	    UIbtn.setOnClickListener(new View.OnClickListener() {
+	        public void onClick(View view) {
+	        	Log.i(TAG, "CLICKED");
+	        }
+	    });
+//	    croppedImage.setLayoutParams(new LayoutParams(UIRect.width, UIRect.height));
+	   
+	    
+//	    croppedImage.setX(0);
+//	    croppedImage.setY(0);
+
+	    rl = (RelativeLayout) findViewById(R.id.main_layout);
+	    
+	    rl.addView(UIbtn);
+	    
+	    
 	    
 	    // Converts result for drawContours to Bitmap
-	    final Bitmap bm = Bitmap.createBitmap(crop.cols(), crop.rows(),Bitmap.Config.ARGB_8888);
-	    Utils.matToBitmap(crop, bm);
+	    final Bitmap bm = Bitmap.createBitmap(matFromOriginalImage.cols(), matFromOriginalImage.rows(),Bitmap.Config.ARGB_8888);
+	    Utils.matToBitmap(matFromOriginalImage, bm);
 	    
 	    runOnUiThread(new Runnable() {
    	     @Override
