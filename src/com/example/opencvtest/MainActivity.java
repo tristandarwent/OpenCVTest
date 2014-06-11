@@ -280,6 +280,8 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	      // Get Mat of capture area
 	      Rect captureRect = new Rect(new Point(captureTLx, captureTLy), new Point(captureBRx, captureBRy));
 	      Mat capture = new Mat(frame, captureRect).clone();
+	      
+//	      originalMat = capture;
 	   
 	      // convert to bitmap:
 	      
@@ -296,7 +298,6 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	      
 	      // -----------------------
 	      
-	      
 	      runOnUiThread(new Runnable() {
 	    	     @Override
 	    	     public void run() {
@@ -305,15 +306,16 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    	    	 ImageView iv = (ImageView) findViewById(R.id.captureImg);
 	    	    	 
 	    	    	 // Set cropped capture into imageView
-//	    	    	 iv.setImageBitmap(bm);
+	    	    	  iv.setImageBitmap(bm); 
 	    	    	 
-	    	    	 // Hide the cameraView to see the imageView behind it
-	    	    	 mOpenCvCameraView.setVisibility(SurfaceView.INVISIBLE);
-	    	    	 
-	    	    	 // Run findContours function, passing through cropped image
-	    	    	 findContour(bm);
+	    	    	// Hide the cameraView to see the imageView behind it
+	    		      mOpenCvCameraView.setVisibility(SurfaceView.INVISIBLE);
+	    		    	 
 	    	    }
 	    	});
+	      
+	      findContour(bm);
+	      
       }
 
       // Save the visualized detection.
@@ -331,15 +333,15 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 		
 		// Takes cropped image and converts it to Mat
 		Bitmap imgCopy = img.copy(Bitmap.Config.ARGB_8888, true); 
-		Mat originalImage = new Mat();
-		Utils.bitmapToMat(imgCopy, originalImage);
+		Mat matFromOriginalImage = new Mat();
+		Utils.bitmapToMat(imgCopy, matFromOriginalImage);
 		
-		Log.i(TAG, "WidthFrame " + originalImage.cols());
-	    Log.i(TAG, "heightFrame " + originalImage.rows());
+		Log.i(TAG, "WidthFrame " + matFromOriginalImage.cols());
+	    Log.i(TAG, "heightFrame " + matFromOriginalImage.rows());
 	    
 	    // Sets up for findContours
 	    Mat manipulateImage = new Mat();
-	    Imgproc.cvtColor(originalImage, manipulateImage, Imgproc.COLOR_RGB2GRAY);
+	    Imgproc.cvtColor(matFromOriginalImage, manipulateImage, Imgproc.COLOR_RGB2GRAY);
 	    Imgproc.blur(manipulateImage, manipulateImage, new Size(3,3));
 	    Imgproc.Canny(manipulateImage, manipulateImage, 150, 150);
 	    Imgproc.dilate(manipulateImage, manipulateImage, new Mat());
@@ -353,7 +355,8 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    // Loops through contours, allowing us to pinpoint the largest one
 	    double maxArea = -1;
 	    int maxAreaI = -1;
-	    
+	    MatOfPoint largestContour = new MatOfPoint();
+
 	    for (int i=0; i<contours.size(); i++){
 	    	Mat contour = contours.get(i);
 	        double contourarea = Imgproc.contourArea(contour);
@@ -365,19 +368,34 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	        }
 	    }
 	    
+	    largestContour = contours.get(maxAreaI);
+	    
+//	    Log.i(TAG, "largest cols " + largestContour.cols());
+//	    Log.i(TAG, "largest rows " + largestContour.rows());
+	    
+//	    return largestContour;
+	    
 	    // Mat to store result from drawContours
-	    Mat resultMat = Mat.zeros(manipulateImage.rows(),manipulateImage.cols(),manipulateImage.type());;
+	    Mat maskMat = Mat.zeros(manipulateImage.rows(),manipulateImage.cols(),manipulateImage.type());
 	    
 	    // Draws contours
-	    Imgproc.drawContours(resultMat, contours, maxAreaI, new Scalar(255), 4);
+	    Imgproc.drawContours(maskMat, contours, maxAreaI, new Scalar(255), -1);
 	    
-	    Log.i(TAG, "resultMat cols " + resultMat.cols());
-	    Log.i(TAG, "resultMat rows " + resultMat.rows());
+//	    Log.i(TAG, "resultMat cols " + resultMat.cols());
+//	    Log.i(TAG, "resultMat rows " + resultMat.rows());
+//	    
+	    Mat crop = new Mat(matFromOriginalImage.rows(), matFromOriginalImage.cols(), CvType.CV_8UC3);
+//
+//	    // set background to green
+	    crop.setTo(new Scalar(255, 0, 0));
+    
+	    matFromOriginalImage.copyTo(crop, maskMat);
 	    
+	    Core.normalize(maskMat.clone(), maskMat, 0.0, 255.0, Core.NORM_MINMAX, CvType.CV_8UC1);
 	    
 	    // Converts result for drawContours to Bitmap
-	    final Bitmap bm = Bitmap.createBitmap(resultMat.cols(), resultMat.rows(),Bitmap.Config.ARGB_8888);
-	    Utils.matToBitmap(resultMat, bm);
+	    final Bitmap bm = Bitmap.createBitmap(crop.cols(), crop.rows(),Bitmap.Config.ARGB_8888);
+	    Utils.matToBitmap(crop, bm);
 	    
 	    runOnUiThread(new Runnable() {
    	     @Override
@@ -390,5 +408,5 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	   	});
 	    
 	}
-
 }
+
