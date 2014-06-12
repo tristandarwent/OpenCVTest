@@ -31,8 +31,10 @@ import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
+//import android.graphics.Point;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -262,22 +264,12 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
     	  matchLocTL = mmrTL.maxLoc;
     	  matchLocBR = mmrBR.maxLoc;
       }
-      
-      // Show me what you got
-      Core.rectangle(frame, new Point(matchLocTL.x, (matchLocTL.y + frame.rows()*0.6)), new Point(matchLocTL.x + topLeftMarker.cols(),
-    		  (matchLocTL.y + frame.rows()*0.6) + topLeftMarker.rows()), new Scalar(0, 255, 0));
-      Core.rectangle(frame, new Point((matchLocBR.x + frame.cols()*0.6), matchLocBR.y), new Point((matchLocBR.x + frame.cols()*0.6) + bottomRightMarker.cols(),
-    		  matchLocBR.y + bottomRightMarker.rows()), new Scalar(0, 255, 0));
-      
-      
+            
       // X and Y coordinates for the capture points
       int captureTLx = (int) matchLocTL.x;
       int captureTLy = (int) (matchLocTL.y + frame.rows()*0.6) + topLeftMarker.rows();
       int captureBRx = (int) (matchLocBR.x + frame.cols()*0.6) + bottomRightMarker.cols();
       int captureBRy = (int) matchLocBR.y;
-      
-      // Draw rectangle of capture area for test purposes
-      Core.rectangle(frame, new Point(captureTLx, captureTLy), new Point(captureBRx, captureBRy), new Scalar(255, 0, 0));
       
       if (takeCapture) {
     	  
@@ -289,6 +281,14 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	      Rect captureRect = new Rect(new Point(captureTLx, captureTLy), new Point(captureBRx, captureBRy));
 	      Mat capture = new Mat(frame, captureRect).clone();
 	      
+	      Mat resizeCapture = new Mat();
+//	      Size sz = new Size(frame.cols(),frame.rows());
+	      
+	      Display display = getWindowManager().getDefaultDisplay();
+	      android.graphics.Point size = new android.graphics.Point();
+	      display.getSize(size);
+	      Imgproc.resize(capture, resizeCapture, new Size(display.getWidth(),display.getHeight()));
+	      
 //	      originalMat = capture;
 	   
 	      // convert to bitmap:
@@ -297,15 +297,16 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	      // Comment out code you wish to disable and uncomment code for mode you wish to enable
 	      
 //	      // For openCV Camera
-	      Bitmap bm = Bitmap.createBitmap(capture.cols(), capture.rows(),Bitmap.Config.ARGB_8888);
-	      Utils.matToBitmap(capture, bm);
-	      final Bitmap bmb = doBrightness(bm, 60);
+	      Bitmap bm = Bitmap.createBitmap(resizeCapture.cols(), resizeCapture.rows(),Bitmap.Config.ARGB_8888);
+	      Utils.matToBitmap(resizeCapture, bm);
+	      Bitmap bmb = doBrightness(bm, 60);
+	      final Bitmap bmf = createContrast(bmb, 60);
 	      
 	      // For test image
 //	      final Bitmap bm = BitmapFactory.decodeResource(getResources(),
-//                  R.drawable.upload);
-	      
-	      // -----------------------
+//                  R.drawable.upload3);
+//	      
+	      // ----------------------
 	      
 	      runOnUiThread(new Runnable() {
 	    	     @Override
@@ -315,7 +316,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    	    	 ImageView iv = (ImageView) findViewById(R.id.captureImg);
 	    	    	 
 	    	    	 // Set cropped capture into imageView
-	    	    	  iv.setImageBitmap(bmb); 
+	    	    	  iv.setImageBitmap(bmf); 
 	    	    	 
 	    	    	// Hide the cameraView to see the imageView behind it
 	    		      mOpenCvCameraView.setVisibility(SurfaceView.INVISIBLE);
@@ -323,15 +324,20 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    	    }
 	    	});
 	      
-	      findContour(bmb);
+	      findContour(bmf);
 	      
       }
-
-      // Save the visualized detection.
-      // System.out.println("Writing "+ outFile);
-      // Highgui.imwrite(outFile, img);
-		
-		return frame;
+      
+      // Draw rectangles around found markers
+      Core.rectangle(frame, new Point(matchLocTL.x, (matchLocTL.y + frame.rows()*0.6)), new Point(matchLocTL.x + topLeftMarker.cols(),
+    		  (matchLocTL.y + frame.rows()*0.6) + topLeftMarker.rows()), new Scalar(0, 255, 0));
+      Core.rectangle(frame, new Point((matchLocBR.x + frame.cols()*0.6), matchLocBR.y), new Point((matchLocBR.x + frame.cols()*0.6) + bottomRightMarker.cols(),
+    		  matchLocBR.y + bottomRightMarker.rows()), new Scalar(0, 255, 0));
+      
+      // Draw rectangle of capture area for test purposes
+      Core.rectangle(frame, new Point(captureTLx, captureTLy), new Point(captureBRx, captureBRy), new Scalar(255, 0, 0));
+      
+      return frame;
 	}
 	
 	public void findContour(Bitmap img) {
@@ -386,27 +392,48 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    Imgproc.drawContours(maskMat, contours, maxAreaI, new Scalar(255), -1);
 	       
 	    Mat crop = new Mat(matFromOriginalImage.rows(), matFromOriginalImage.cols(), CvType.CV_8UC3);
+//	    Mat cropWhite = new Mat(matFromOriginalImage.rows(), matFromOriginalImage.cols(), CvType.CV_8UC3);
+//	    
+//	    Mat whiteMat = new Mat(matFromOriginalImage.rows(), matFromOriginalImage.cols(), CvType.CV_8UC3);
+//	    whiteMat.setTo(new Scalar(255, 255, 255));
 	    
 	    // set background to green
-	    crop.setTo(new Scalar(0, 255, 0));
+//	    crop.setTo(new Scalar(0, 255, 0));
 	    
 //	    Imgproc.blur(maskMat, maskMat, new Size(13,13));
     
 	    matFromOriginalImage.copyTo(crop, maskMat);
+//	    whiteMat.copyTo(cropWhite, maskMat);
 	    
 //	    Core.normalize(maskMat.clone(), maskMat, 0.0, 255.0, Core.NORM_MINMAX, CvType.CV_8UC1);
 	    
 	    Rect UIRect = Imgproc.boundingRect(largestContour);
 	    Mat UICrop = new Mat(crop, UIRect).clone();
+//	    Mat UICropWhite = new Mat(cropWhite, UIRect).clone();
 	    
 	    Bitmap UIbm = Bitmap.createBitmap(UICrop.cols(), UICrop.rows(),Bitmap.Config.ARGB_8888);
 	    Utils.matToBitmap(UICrop, UIbm);
 	    BitmapDrawable UIbmd = new BitmapDrawable(UIbm);
 	    
+	    Bitmap whitebm = Bitmap.createBitmap(UICrop.cols(), UICrop.rows(),Bitmap.Config.ARGB_8888);
+	    Utils.matToBitmap(UICrop, whitebm);
+	    Bitmap whitebmbright = Bitmap.createBitmap(UICrop.cols(), UICrop.rows(),Bitmap.Config.ARGB_8888);
+	    whitebmbright = doBrightness(whitebm, 255);
+	    
+//	    Bitmap fillbm = Bitmap.createBitmap(UICropWhite.cols(), UICropWhite.rows(),Bitmap.Config.ARGB_8888);
+//	    Utils.matToBitmap(UICropWhite, fillbm);
+	    
 	    Button UIbtn = new Button(this);
-	    UIbtn.setWidth(UIRect.width*2);
-	    UIbtn.setHeight(UIRect.height*2);
+	    UIbtn.setWidth(UIRect.width);
+	    UIbtn.setHeight(UIRect.height);
 	    UIbtn.setBackgroundDrawable(UIbmd);
+	    UIbtn.setX(UIRect.x);
+	    UIbtn.setY(UIRect.y);
+	    
+	    ImageView fill = new ImageView(this);
+	    fill.setImageBitmap(whitebmbright);
+	    fill.setX(UIRect.x);
+	    fill.setY(UIRect.y);
 	    
 	    UIbtn.setOnTouchListener(new OnTouchListener() {
 			
@@ -436,6 +463,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 
 	    rl = (RelativeLayout) findViewById(R.id.main_layout);
 	    
+	    rl.addView(fill);
 	    rl.addView(UIbtn);
 	    
 	    
@@ -497,5 +525,49 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    // return final image
 	    return bmOut;
 	}
+	
+	public static Bitmap createContrast(Bitmap src, double value) {
+	    // image size
+	    int width = src.getWidth();
+	    int height = src.getHeight();
+	    // create output bitmap
+	    Bitmap bmOut = Bitmap.createBitmap(width, height, src.getConfig());
+	    // color information
+	    int A, R, G, B;
+	    int pixel;
+	    // get contrast value
+	    double contrast = Math.pow((100 + value) / 100, 2);
+	 
+	    // scan through all pixels
+	    for(int x = 0; x < width; ++x) {
+	        for(int y = 0; y < height; ++y) {
+	            // get pixel color
+	            pixel = src.getPixel(x, y);
+	            A = Color.alpha(pixel);
+	            // apply filter contrast for every channel R, G, B
+	            R = Color.red(pixel);
+	            R = (int)(((((R / 255.0) - 0.5) * contrast) + 0.5) * 255.0);
+	            if(R < 0) { R = 0; }
+	            else if(R > 255) { R = 255; }
+	 
+	            G = Color.green(pixel);
+	            G = (int)(((((G / 255.0) - 0.5) * contrast) + 0.5) * 255.0);
+	            if(G < 0) { G = 0; }
+	            else if(G > 255) { G = 255; }
+	 
+	            B = Color.blue(pixel);
+	            B = (int)(((((B / 255.0) - 0.5) * contrast) + 0.5) * 255.0);
+	            if(B < 0) { B = 0; }
+	            else if(B > 255) { B = 255; }
+	 
+	            // set new pixel color to output bitmap
+	            bmOut.setPixel(x, y, Color.argb(A, R, G, B));
+	        }
+	    }
+	 
+	    // return final image
+	    return bmOut;
+	}
+	
 }
 
