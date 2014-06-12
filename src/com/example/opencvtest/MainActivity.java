@@ -29,7 +29,7 @@ import org.opencv.imgproc.Imgproc;
 import android.app.Activity;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.util.Log;
@@ -43,7 +43,6 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
-import android.widget.RelativeLayout.LayoutParams;
 
 public class MainActivity extends Activity implements CvCameraViewListener2, OnTouchListener {
 	private static final String TAG = "OCVSample::Activity";
@@ -298,12 +297,13 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	      // Comment out code you wish to disable and uncomment code for mode you wish to enable
 	      
 //	      // For openCV Camera
-//	      final Bitmap bm = Bitmap.createBitmap(capture.cols(), capture.rows(),Bitmap.Config.ARGB_8888);
-//	      Utils.matToBitmap(capture, bm);
+	      Bitmap bm = Bitmap.createBitmap(capture.cols(), capture.rows(),Bitmap.Config.ARGB_8888);
+	      Utils.matToBitmap(capture, bm);
+	      final Bitmap bmb = doBrightness(bm, 60);
 	      
 	      // For test image
-	      final Bitmap bm = BitmapFactory.decodeResource(getResources(),
-                  R.drawable.upload);
+//	      final Bitmap bm = BitmapFactory.decodeResource(getResources(),
+//                  R.drawable.upload);
 	      
 	      // -----------------------
 	      
@@ -315,7 +315,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    	    	 ImageView iv = (ImageView) findViewById(R.id.captureImg);
 	    	    	 
 	    	    	 // Set cropped capture into imageView
-	    	    	  iv.setImageBitmap(bm); 
+	    	    	  iv.setImageBitmap(bmb); 
 	    	    	 
 	    	    	// Hide the cameraView to see the imageView behind it
 	    		      mOpenCvCameraView.setVisibility(SurfaceView.INVISIBLE);
@@ -323,7 +323,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    	    }
 	    	});
 	      
-	      findContour(bm);
+	      findContour(bmb);
 	      
       }
 
@@ -383,7 +383,7 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    Mat maskMat = Mat.zeros(manipulateImage.rows(),manipulateImage.cols(),manipulateImage.type());
 	    
 	    // Draws contours
-	    Imgproc.drawContours(maskMat, contours, maxAreaI, new Scalar(125, 125, 125), -1);
+	    Imgproc.drawContours(maskMat, contours, maxAreaI, new Scalar(255), -1);
 	       
 	    Mat crop = new Mat(matFromOriginalImage.rows(), matFromOriginalImage.cols(), CvType.CV_8UC3);
 	    
@@ -404,22 +404,22 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	    BitmapDrawable UIbmd = new BitmapDrawable(UIbm);
 	    
 	    Button UIbtn = new Button(this);
+	    UIbtn.setWidth(UIRect.width*2);
+	    UIbtn.setHeight(UIRect.height*2);
 	    UIbtn.setBackgroundDrawable(UIbmd);
-	    UIbtn.setWidth(UIRect.width);
-	    UIbtn.setHeight(UIRect.height);
 	    
 	    UIbtn.setOnTouchListener(new OnTouchListener() {
 			
 			@Override
 			public boolean onTouch(View v, MotionEvent event) {
-				Log.i(TAG, "CLICKED");
+//				Log.i(TAG, "CLICKED");
 				if (event.getAction() == MotionEvent.ACTION_DOWN){
 	                oldXvalue = event.getX();
 	                oldYvalue = event.getY();
-	                Log.i(TAG, "ACTION_DOWN");
-	                Log.i(TAG, "Action Down " + oldXvalue + "," + oldYvalue);
+//	                Log.i(TAG, "ACTION_DOWN");
+//	                Log.i(TAG, "Action Down " + oldXvalue + "," + oldYvalue);
 	            }else if (event.getAction() == MotionEvent.ACTION_MOVE  ){
-	            	Log.i(TAG, "ACTION_MOVE");
+//	            	Log.i(TAG, "ACTION_MOVE");
 	            	mx = (int)(event.getRawX() - oldXvalue);    
 	                my = (int)(event.getRawY() - oldYvalue);    
 	                v.setX(mx);
@@ -454,6 +454,48 @@ public class MainActivity extends Activity implements CvCameraViewListener2, OnT
 	   	    }
 	   	});
 	    
+	}
+	
+	public static Bitmap doBrightness(Bitmap src, int value) {
+	    // image size
+	    int width = src.getWidth();
+	    int height = src.getHeight();
+	    // create output bitmap
+	    Bitmap bmOut = Bitmap.createBitmap(width, height, src.getConfig());
+	    // color information
+	    int A, R, G, B;
+	    int pixel;
+	 
+	    // scan through all pixels
+	    for(int x = 0; x < width; ++x) {
+	        for(int y = 0; y < height; ++y) {
+	            // get pixel color
+	            pixel = src.getPixel(x, y);
+	            A = Color.alpha(pixel);
+	            R = Color.red(pixel);
+	            G = Color.green(pixel);
+	            B = Color.blue(pixel);
+	 
+	            // increase/decrease each channel
+	            R += value;
+	            if(R > 255) { R = 255; }
+	            else if(R < 0) { R = 0; }
+	 
+	            G += value;
+	            if(G > 255) { G = 255; }
+	            else if(G < 0) { G = 0; }
+	 
+	            B += value;
+	            if(B > 255) { B = 255; }
+	            else if(B < 0) { B = 0; }
+	 
+	            // apply new pixel color to output bitmap
+	            bmOut.setPixel(x, y, Color.argb(A, R, G, B));
+	        }
+	    }
+	 
+	    // return final image
+	    return bmOut;
 	}
 }
 
